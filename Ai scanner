@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Digit Market Scanner - Deriv Pro</title>
+    <!-- Tailwind CSS (CDN build — fine for a demo, compile for production) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4', 500: '#22c55e', 600: '#16a34a',
+                            700: '#15803d', 900: '#14532d',
+                            dark: '#0B0F17', card: '#111827',
+                            border: '#1F2937', accent: '#6366f1'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .glow-green { box-shadow: 0 0 15px rgba(34, 197, 94, 0.25); }
+        .glow-red { box-shadow: 0 0 15px rgba(239, 68, 68, 0.25); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0B0F17; }
+        ::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #374151; }
+        input[type=range] { -webkit-appearance: none; appearance: none; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 14px; height: 14px;
+            border-radius: 9999px; background: #22c55e; cursor: pointer;
+            border: 2px solid #0B0F17;
+        }
+    </style>
+</head>
+<body class="bg-brand-dark text-slate-100 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+    <header class="border-b border-brand-border bg-brand-card/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                    <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>
+                </div>
+                <div class="min-w-0">
+                    <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent truncate">
+                        QUANT<span class="text-brand-500">DIGIT</span> AI SCANNER
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-medium tracking-wider uppercase truncate">Statistical Digit Analyser</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 shrink-0">
+                <div class="hidden sm:flex items-center gap-2 bg-brand-dark border border-brand-border px-3 py-1.5 rounded-lg">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span id="ping-dot" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span id="status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                    </span>
+                    <span id="connection-text" class="text-xs font-semibold text-amber-400">Simulated Feed</span>
+                </div>
+
+                <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+                    <span class="text-xs font-medium text-slate-400 hidden sm:inline">Virtual Balance:</span>
+                    <span id="virtual-balance" class="text-sm font-bold text-white mono">$10,000.00</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 w-full">
+
+        <!-- Top controls -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="bg-brand-card border border-brand-border rounded-xl p-4 flex flex-col justify-between shadow-sm">
+                <label for="symbol-select" class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+                    Active Index
+                </label>
+                <select id="symbol-select" class="bg-brand-dark border border-brand-border text-white text-sm rounded-lg p-2.5 focus:ring-2 focus:ring-brand-500 focus:outline-none w-full font-semibold">
+                    <option value="1HZ10V">Volatility 10 (1s) Index</option>
+                    <option value="R_10">Volatility 10 Index</option>
+                    <option value="1HZ25V">Volatility 25 (1s) Index</option>
+                    <option value="R_25">Volatility 25 Index</option>
+                    <option value="1HZ50V">Volatility 50 (1s) Index</option>
+                    <option value="R_50">Volatility 50 Index</option>
+                    <option value="1HZ75V">Volatility 75 (1s) Index</option>
+                    <option value="R_75">Volatility 75 Index</option>
+                    <option value="1HZ100V" selected>Volatility 100 (1s) Index</option>
+                    <option value="R_100">Volatility 100 Index</option>
+                </select>
+            </div>
+
+            <div class="bg-brand-card border border-brand-border rounded-xl p-4 flex flex-col justify-between shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    Live Spot Price
+                </div>
+                <div class="flex items-baseline justify-between mt-1">
+                    <span id="current-price" class="text-2xl font-black text-white mono">---.--</span>
+                    <span id="last-digit-badge" class="px-3 py-1 rounded-lg text-lg font-black bg-brand-500 text-slate-950 mono shadow-md">-</span>
+                </div>
+            </div>
+
+            <div class="bg-brand-card border border-brand-border rounded-xl p-4 flex flex-col justify-between shadow-sm">
+                <div class="flex justify-between items-center mb-2">
+                    <label for="lookback-slider" class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                        Sample Window
+                    </label>
+                    <span id="lookback-val" class="text-xs font-bold text-brand-500 mono">100 Ticks</span>
+                </div>
+                <input type="range" id="lookback-slider" min="25" max="500" value="100" step="25" class="w-full accent-brand-500 cursor-pointer h-2 bg-brand-dark rounded-lg">
+            </div>
+
+            <div class="bg-brand-card border border-brand-border rounded-xl p-4 flex flex-col justify-between shadow-sm">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01M16 16h.01"/></svg>
+                        Auto-Execution
+                    </span>
+                    <span id="bot-status-tag" class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">OFF</span>
+                </div>
+                <button id="toggle-bot-btn" role="switch" aria-checked="false"
+                    class="mt-2 w-full py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                    <span id="bot-btn-icon" class="inline-flex">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </span>
+                    <span id="bot-btn-label">START AUTO-BOT</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Live tape -->
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <svg class="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/></svg>
+                    Live Digit Sequence Stream
+                </span>
+                <span class="text-xs text-slate-500 font-mono">Oldest → Latest</span>
+            </div>
+            <div id="digit-tape" class="flex gap-2 overflow-x-auto py-2 px-1"></div>
+        </div>
+
+        <!-- Analytics -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-brand-card border border-brand-border rounded-xl p-5 flex flex-col justify-between shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <svg class="w-5 h-5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>
+                            Digit Statistics &amp; Absence Tracker
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Percentage density across the selected lookback window.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 mb-4" id="digit-grid"></div>
+
+                <div class="h-44 w-full mt-2">
+                    <canvas id="frequencyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-brand-card border border-brand-border rounded-xl p-5 flex flex-col justify-between shadow-sm">
+                <h3 class="text-base font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                    Market Bias &amp; Skew Gauges
+                </h3>
+
+                <div class="space-y-5">
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1.5">
+                            <span class="text-emerald-400">EVEN: <span id="even-pct">0%</span></span>
+                            <span class="text-indigo-400">ODD: <span id="odd-pct">0%</span></span>
+                        </div>
+                        <div class="w-full h-3 bg-brand-dark rounded-full overflow-hidden flex border border-slate-800">
+                            <div id="even-bar" class="bg-emerald-500 h-full transition-all duration-300" style="width:50%"></div>
+                            <div id="odd-bar" class="bg-indigo-500 h-full transition-all duration-300" style="width:50%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1.5">
+                            <span class="text-amber-400">UNDER 5 (0–4): <span id="under-pct">0%</span></span>
+                            <span class="text-cyan-400">OVER 4 (5–9): <span id="over-pct">0%</span></span>
+                        </div>
+                        <div class="w-full h-3 bg-brand-dark rounded-full overflow-hidden flex border border-slate-800">
+                            <div id="under-bar" class="bg-amber-500 h-full transition-all duration-300" style="width:50%"></div>
+                            <div id="over-bar" class="bg-cyan-500 h-full transition-all duration-300" style="width:50%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1.5">
+                            <span class="text-green-400">RISE TICK: <span id="rise-pct">0%</span></span>
+                            <span class="text-red-400">FALL TICK: <span id="fall-pct">0%</span></span>
+                        </div>
+                        <div class="w-full h-3 bg-brand-dark rounded-full overflow-hidden flex border border-slate-800">
+                            <div id="rise-bar" class="bg-green-500 h-full transition-all duration-300" style="width:50%"></div>
+                            <div id="fall-bar" class="bg-red-500 h-full transition-all duration-300" style="width:50%"></div>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-1">Computed from quote movement, not digits.</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 rounded-lg bg-indigo-950/40 border border-indigo-800/50 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg>
+                        <span class="text-xs font-medium text-slate-300">Longest absence:</span>
+                    </div>
+                    <span id="overdue-digit" class="text-sm font-bold text-indigo-400 mono px-2 py-0.5 rounded bg-indigo-900/60">—</span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-2 leading-relaxed">Descriptive only — a digit being "absent" does not increase its next-tick probability.</p>
+            </div>
+        </div>
+
+        <!-- Signals -->
+        <div class="bg-brand-card border border-brand-border rounded-xl p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                        Signal Matrix
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Top 3 statistically skewed opportunities in the current window.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label for="min-conf-input" class="text-xs text-slate-400 font-medium">Min Confidence:</label>
+                    <input id="min-conf-input" type="number" min="50" max="95" step="5" value="70"
+                        class="w-16 text-xs font-bold text-brand-500 bg-brand-dark px-2 py-1 rounded border border-brand-border mono focus:outline-none focus:ring-1 focus:ring-brand-500">
+                    <span class="text-xs font-bold text-slate-500">%</span>
+                </div>
+            </div>
+
+            <div id="signals-container" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+
+            <div class="mt-4 p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+                <p class="text-[11px] leading-relaxed text-slate-400">
+                    <strong class="text-slate-300">Edge disclosure.</strong> Deriv volatility indices are driven by a CSPRNG — digits are independent and uniform.
+                    Frequency skew above describes <em>past</em> ticks and does not predict the next one. At standard payouts every contract listed has negative
+                    expected value: EVEN/ODD/OVER/UNDER ≈ <span class="text-red-400 font-semibold">−2.5%</span> per trade, DIFFERS ≈ <span class="text-red-400 font-semibold">−1.9%</span> per trade.
+                    Martingale does not change expectation; it only reshapes the risk distribution.
+                </p>
+            </div>
+        </div>
+
+        <!-- Risk + log -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-brand-card border border-brand-border rounded-xl p-5 shadow-sm space-y-4">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+                    Risk Management
+                </h3>
+
+                <div class="space-y-3">
+                    <div>
+                        <label for="stake-input" class="text-xs font-semibold text-slate-400">Base Stake ($)</label>
+                        <input type="number" id="stake-input" value="10" min="1" step="1"
+                            class="mt-1 w-full bg-brand-dark border border-brand-border rounded-lg p-2 text-sm text-white mono focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="tp-input" class="text-xs font-semibold text-slate-400">Take Profit ($)</label>
+                            <input type="number" id="tp-input" value="100" min="1" step="10"
+                                class="mt-1 w-full bg-brand-dark border border-brand-border rounded-lg p-2 text-sm text-white mono focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label for="sl-input" class="text-xs font-semibold text-slate-400">Stop Loss ($)</label>
+                            <input type="number" id="sl-input" value="50" min="1" step="10"
+                                class="mt-1 w-full bg-brand-dark border border-brand-border rounded-lg p-2 text-sm text-white mono focus:ring-1 focus:ring-red-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="martingale-input" class="text-xs font-semibold text-slate-400">Multiplier</label>
+                            <input type="number" id="martingale-input" value="2.1" step="0.1" min="1"
+                                class="mt-1 w-full bg-brand-dark border border-brand-border rounded-lg p-2 text-sm text-white mono focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label for="maxstake-input" class="text-xs font-semibold text-slate-400">Max Stake ($)</label>
+                            <input type="number" id="maxstake-input" value="200" min="1" step="10"
+                                class="mt-1 w-full bg-brand-dark border border-brand-border rounded-lg p-2 text-sm text-white mono focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="p-2.5 rounded-lg bg-brand-dark border border-brand-border flex items-center justify-between">
+                        <span class="text-xs text-slate-400 font-semibold">Next Stake</span>
+                        <span id="next-stake" class="text-sm font-bold text-amber-400 mono">$10.00</span>
+                    </div>
+
+                    <div id="risk-note" class="hidden p-2.5 rounded-lg bg-amber-950/40 border border-amber-800/60 text-[11px] font-semibold text-amber-300"></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-brand-card border border-brand-border rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12H3M16 6H3M16 18H3M21 12h-6l-3-3v6l3-3z"/></svg>
+                        Execution Log
+                    </h3>
+                    <div class="flex items-center gap-4 text-xs font-bold">
+                        <span class="text-slate-400">Win Rate: <span id="win-rate-text" class="text-emerald-400 mono">—</span></span>
+                        <span class="text-slate-400">Session P/L: <span id="total-pl-text" class="text-white mono">$0.00</span></span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-56 overflow-y-auto rounded-lg border border-brand-border">
+                    <table class="w-full text-left text-xs font-medium text-slate-300">
+                        <thead class="bg-brand-dark text-slate-400 uppercase font-semibold sticky top-0 border-b border-brand-border z-10">
+                            <tr>
+                                <th class="p-2.5">Time</th>
+                                <th class="p-2.5">Contract</th>
+                                <th class="p-2.5">Target</th>
+                                <th class="p-2.5">Stake</th>
+                                <th class="p-2.5">Result</th>
+                                <th class="p-2.5 text-right">P/L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-table-body" class="divide-y divide-brand-border/50 mono">
+                            <tr id="empty-row">
+                                <td colspan="6" class="p-4 text-center text-slate-500 font-sans">No trades executed yet. Enable Auto-Bot or execute a signal.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    'use strict';
+
+    /* ============================================================
+       CONFIG
+       ============================================================ */
+    const FEED_MODE = 'sim';          // 'sim' | 'live'
+    const DERIV_APP_ID = '1089';      // replace with your own registered app_id
+    const MAX_CONSEC_LOSSES = 5;
+    const TRADE_COOLDOWN_MS = 3000;
+    const HISTORY_CAP = 1000;
+    const STORAGE_KEY = 'qd_scanner_v2';
+
+    // Payout multipliers per contract (profit per $1 staked on a win).
+    const PAYOUT = { EVEN: 0.95, ODD: 0.95, 'OVER 4': 0.95, 'UNDER 5': 0.95, DIFFERS: 0.09 };
+
+    const SYMBOLS = {
+        '1HZ10V':  { seed: 6432.18,  vol: 0.35,  ms: 1000 },
+        'R_10':    { seed: 6432.18,  vol: 0.90,  ms: 2000 },
+        '1HZ25V':  { seed: 2341.87,  vol: 0.80,  ms: 1000 },
+        'R_25':    { seed: 2341.87,  vol: 2.10,  ms: 2000 },
+        '1HZ50V':  { seed: 289.44,   vol: 0.22,  ms: 1000 },
+        'R_50':    { seed: 289.44,   vol: 0.55,  ms: 2000 },
+        '1HZ75V':  { seed: 105234.60,vol: 12.00, ms: 1000 },
+        'R_75':    { seed: 105234.60,vol: 30.00, ms: 2000 },
+        '1HZ100V': { seed: 1638.42,  vol: 1.60,  ms: 1000 },
+        'R_100':   { seed: 1638.42,  vol: 4.00,  ms: 2000 }
+    };
+
+    /* ============================================================
+       STATE
+       ============================================================ */
+    const S = {
+        symbol: '1HZ100V',
+        lookback: 100,
+        ticks: [],
+        simPrice: SYMBOLS['1HZ100V'].seed,
+
+        balance: 10000,
+        baseStake: 10,
+        currentStake: 10,
+        totalPL: 0,
+        wins: 0,
+        losses: 0,
+        consecLosses: 0,
+
+        botActive: false,
+        minConfidence: 70,
+        lastTradeAt: 0,
+
+        pending: [],              // trades awaiting settlement on the NEXT tick
+        signals: [],              // current ranked signals
+        overdue: Array(10).fill(0),
+        trades: [],               // settled trade history
+
+        lastSignalSig: '',
+        lastTapeSig: '',
+        riskNote: ''
+    };
+
+    let chart = null;
+    let tickTimer = null;
+
+    const $ = id => document.getElementById(id);
+    const num = id => parseFloat($(id).value) || 0;
+    const money = n => (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    /* ============================================================
+       BOOT
+       ============================================================ */
+    document.addEventListener('DOMContentLoaded', () => {
+        loadState();
+        buildChart();
+        bindEvents();
+        restoreTradeLog();
+        syncControls();
+        renderAll();
+        restartFeed();
+    });
+
+    /* ============================================================
+       FEED
+       ============================================================ */
+    let ws = null;
+    let wsCurrentSymbol = null;
+
+    function restartFeed() {
+        clearInterval(tickTimer);
+        if (FEED_MODE === 'live') { connectLive(); return; }
+        setConnectionState('sim');
+        tickTimer = setInterval(() => handleTick(nextSimPrice()), SYMBOLS[S.symbol].ms);
+    }
+
+    function nextSimPrice() {
+        const cfg = SYMBOLS[S.symbol];
+        // Approximately gaussian step (sum of 3 uniforms, centred).
+        const g = (Math.random() + Math.random() + Math.random() - 1.5);
+        S.simPrice = Math.max(0.01, S.simPrice + g * cfg.vol);
+        return S.simPrice.toFixed(2);
+    }
+
+    function setConnectionState(mode) {
+        const dot = $('status-dot'), ping = $('ping-dot'), txt = $('connection-text');
+        if (mode === 'live') {
+            dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500';
+            ping.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+            txt.textContent = 'Live · Deriv WS';
+            txt.className = 'text-xs font-semibold text-emerald-400';
+        } else if (mode === 'down') {
+            dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500';
+            ping.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75';
+            txt.textContent = 'Disconnected';
+            txt.className = 'text-xs font-semibold text-red-400';
+        } else {
+            dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500';
+            ping.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75';
+            txt.textContent = 'Simulated Feed';
+            txt.className = 'text-xs font-semibold text-amber-400';
+        }
+    }
+
+    function connectLive() {
+        if (ws) { try { ws.close(); } catch (_) {} ws = null; }
+        ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=' + encodeURIComponent(DERIV_APP_ID));
+
+        ws.onopen = () => {
+            setConnectionState('live');
+            subscribe(S.symbol);
+        };
+        ws.onclose = () => { setConnectionState('down'); ws = null; };
+        ws.onerror = () => setConnectionState('down');
+        ws.onmessage = ev => {
+            let d;
+            try { d = JSON.parse(ev.data); } catch (_) { return; }
+            if (d.error) { console.error('[Deriv]', d.error.message); return; }
+            if (d.msg_type === 'tick' && d.tick) handleTick(Number(d.tick.quote).toFixed(2));
+        };
+    }
+
+    function subscribe(symbol) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        if (wsCurrentSymbol) ws.send(JSON.stringify({ forget_all: 'ticks' }));
+        wsCurrentSymbol = symbol;
+        ws.send(JSON.stringify({ ticks: symbol, subscribe: 1 }));
+    }
+
+    /* ============================================================
+       TICK PIPELINE  (settle → record → render → maybe trade)
+       ============================================================ */
+    function handleTick(priceStr) {
+        const price = parseFloat(priceStr);
+        if (!Number.isFinite(price)) return;
+        const digit = Number(priceStr.slice(-1));
+        if (!Number.isFinite(digit)) return;
+
+        // 1. Settle anything opened on a previous tick against THIS tick.
+        settlePending(digit);
+
+        // 2. Update absence counters.
+        for (let i = 0; i < 10; i++) S.overdue[i] = (i === digit) ? 0 : S.overdue[i] + 1;
+
+        // 3. Record.
+        const prev = S.ticks.length ? S.ticks[S.ticks.length - 1].price : price;
+        S.ticks.push({ price, priceStr, digit, prev, t: Date.now() });
+        if (S.ticks.length > HISTORY_CAP) S.ticks.shift();
+
+        // 4. Render + decide.
+        renderAll();
+        maybeAutoTrade();
+    }
+
+    /* ============================================================
+       STATS
+       ============================================================ */
+    function computeStats() {
+        const recent = S.ticks.slice(-S.lookback);
+        const total = recent.length;
+        const counts = Array(10).fill(0);
+        for (const x of recent) counts[x.digit]++;
+        const pct = counts.map(c => total ? (c / total) * 100 : 0);
+
+        let evens = 0, overs = 0, rises = 0, comparisons = 0;
+        recent.forEach((t, i) => {
+            if (t.digit % 2 === 0) evens++;
+            if (t.digit >= 5) overs++;
+            if (i > 0) { comparisons++; if (t.price > recent[i - 1].price) rises++; }
+        });
+
+        const evenPct = total ? (evens / total) * 100 : 0;
+        const overPct = total ? (overs / total) * 100 : 0;
+        const risePct = comparisons ? (rises / comparisons) * 100 : 0;
+
+        return { recent, total, counts, pct, evenPct, overPct, risePct };
+    }
+
+    /* ============================================================
+       SIGNAL GENERATION
+       ============================================================ */
+    function buildSignals(stats) {
+        const { total, pct, evenPct, overPct } = stats;
+        const out = [];
+        if (total < 25) { S.signals = []; return; }
+
+        // (a) Coldest digits → DIFFERS (max 2 candidates).
+        pct.map((p, d) => ({ d, p }))
+           .filter(x => x.p <= 7.5)
+           .sort((a, b) => a.p - b.p)
+           .slice(0, 2)
+           .forEach(x => {
+               out.push({
+                   type: 'DIFFERS',
+                   target: String(x.d),
+                   confidence: Math.min(94, Math.round(70 + (10 - x.p) * 4)),
+                   reason: `Digit ${x.d} appears in ${x.p.toFixed(1)}% of the last ${total} ticks. DIFFERS pays 1.09× and needs a 91.7% win rate to break even.`
+               });
+           });
+
+        // (b) Even/Odd skew (≥2σ from 50% on a 100-tick window).
+        if (evenPct >= 60) {
+            out.push({
+                type: 'EVEN', target: 'EVEN DIGIT',
+                confidence: Math.min(92, Math.round(evenPct + 8)),
+                reason: `${evenPct.toFixed(1)}% of the window landed on an even digit (baseline 50%).`
+            });
+        } else if (evenPct <= 40) {
+            out.push({
+                type: 'ODD', target: 'ODD DIGIT',
+                confidence: Math.min(92, Math.round((100 - evenPct) + 8)),
+                reason: `${(100 - evenPct).toFixed(1)}% of the window landed on an odd digit (baseline 50%).`
+            });
+        }
+
+        // (c) Over/Under skew.
+        if (overPct >= 60) {
+            out.push({
+                type: 'OVER 4', target: 'DIGIT > 4',
+                confidence: Math.min(90, Math.round(overPct)),
+                reason: `Upper digits (5–9) at ${overPct.toFixed(1)}% vs a 50% baseline.`
+            });
+        } else if (overPct <= 40) {
+            out.push({
+                type: 'UNDER 5', target: 'DIGIT < 5',
+                confidence: Math.min(90, Math.round(100 - overPct)),
+                reason: `Lower digits (0–4) at ${(100 - overPct).toFixed(1)}% vs a 50% baseline.`
+            });
+        }
+
+        out.sort((a, b) => b.confidence - a.confidence);
+        S.signals = out.slice(0, 3);
+    }
+
+    /* ============================================================
+       RENDER
+       ============================================================ */
+    function renderAll() {
+        if (!S.ticks.length) return;
+        const stats = computeStats();
+        const last = S.ticks[S.ticks.length - 1];
+
+        // Price + digit badge
+        $('current-price').textContent = last.priceStr;
+        const badge = $('last-digit-badge');
+        badge.textContent = last.digit;
+        badge.className = 'px-3 py-1 rounded-lg text-lg font-black mono shadow-md ' +
+            (last.digit % 2 === 0 ? 'bg-emerald-500 text-slate-950' : 'bg-indigo-500 text-white');
+
+        renderTape(stats.recent);
+        renderDigitGrid(stats);
+        updateChart(stats.pct);
+        renderGauges(stats);
+        buildSignals(stats);
+        renderSignals();
+        updateBalanceUI();
+    }
+
+    function renderTape(recent) {
+        const slice = recent.slice(-24);
+        const sig = slice.map(t => t.digit).join('');
+        if (sig === S.lastTapeSig) return;
+        S.lastTapeSig = sig;
+
+        $('digit-tape').innerHTML = slice.map(t => {
+            const even = t.digit % 2 === 0;
+            return `<div title="${t.priceStr}" class="shrink-0 flex flex-col items-center justify-center w-10 h-12 rounded-lg border ${
+                even ? 'bg-emerald-950/60 border-emerald-800/60' : 'bg-indigo-950/60 border-indigo-800/60'
+            }">
+                <span class="text-[9px] font-semibold text-slate-500 mono">${t.priceStr.slice(-4, -2)}</span>
+                <span class="text-sm font-black mono ${even ? 'text-emerald-400' : 'text-indigo-400'}">${t.digit}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function renderDigitGrid(stats) {
+        const { counts, pct } = stats;
+        $('digit-grid').innerHTML = counts.map((c, d) => {
+            const p = pct[d];
+            const cold = p <= 7.5;
+            const hot = p >= 12.5;
+            const cls = cold ? 'bg-red-950/40 border-red-800/80 glow-red'
+                      : hot  ? 'bg-emerald-950/40 border-emerald-800/80 glow-green'
+                             : 'bg-brand-dark border-brand-border';
+            const pctCls = cold ? 'text-red-400' : hot ? 'text-emerald-400' : 'text-white';
+            return `<div class="p-2 rounded-lg border text-center transition ${cls}">
+                <div class="text-[10px] font-bold text-slate-400">D${d}</div>
+                <div class="text-sm font-black mono mt-0.5 ${pctCls}">${p.toFixed(1)}%</div>
+                <div class="text-[9px] text-slate-500 mt-0.5">${S.overdue[d]}t</div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderGauges(stats) {
+        const evenPct = stats.evenPct;
+        const oddPct = 100 - evenPct;
+        const overPct = stats.overPct;
+        const underPct = 100 - overPct;
+        const risePct = stats.risePct;
+        const fallPct = 100 - risePct;
+
+        $('even-pct').textContent = evenPct.toFixed(1) + '%';
+        $('odd-pct').textContent = oddPct.toFixed(1) + '%';
+        $('even-bar').style.width = evenPct + '%';
+        $('odd-bar').style.width = oddPct + '%';
+
+        $('under-pct').textContent = underPct.toFixed(1) + '%';
+        $('over-pct').textContent = overPct.toFixed(1) + '%';
+        $('under-bar').style.width = underPct + '%';
+        $('over-bar').style.width = overPct + '%';
+
+        $('rise-pct').textContent = risePct.toFixed(1) + '%';
+        $('fall-pct').textContent = fallPct.toFixed(1) + '%';
+        $('rise-bar').style.width = risePct + '%';
+        $('fall-bar').style.width = fallPct + '%';
+
+        const maxAbs = Math.max(...S.overdue);
+        const idx = S.overdue.indexOf(maxAbs);
+        $('overdue-digit').textContent = `Digit ${idx} · ${maxAbs} ticks`;
+    }
+
+    function renderSignals() {
+        const sig = S.signals.map(s => `${s.type}:${s.target}:${s.confidence}`).join('|');
+        if (sig === S.lastSignalSig) return;
+        S.lastSignalSig = sig;
+
+        const box = $('signals-container');
+        if (!S.signals.length) {
+            box.innerHTML = `<div class="md:col-span-3 p-6 text-center border border-dashed border-brand-border rounded-xl text-slate-500 text-sm">
+                Scanning… no statistically notable skew in the current window.
+            </div>`;
+            return;
+        }
+
+        const colours = {
+            DIFFERS: 'bg-indigo-500', EVEN: 'bg-emerald-500', ODD: 'bg-indigo-500',
+            'OVER 4': 'bg-cyan-500', 'UNDER 5': 'bg-amber-500'
+        };
+
+        box.innerHTML = S.signals.map(s => `
+            <div class="bg-brand-dark border border-brand-border rounded-xl p-4 flex flex-col justify-between space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="px-2.5 py-1 rounded text-xs font-black text-slate-950 uppercase ${colours[s.type] || 'bg-slate-500'}">
+                        BUY ${s.type}
+                    </span>
+                    <span class="text-xs font-bold text-amber-400 mono flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+                        ${s.confidence}%
+                    </span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed font-medium">${s.reason}</p>
+                <div class="pt-2 border-t border-brand-border/60 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Target: <strong class="text-white mono">${s.target}</strong></span>
+                    <button data-type="${s.type}" data-target="${s.target}"
+                        class="js-execute px-2.5 py-1 rounded bg-brand-card border border-brand-border hover:border-brand-500 hover:text-white text-slate-200 font-bold transition">
+                        Execute
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function updateBalanceUI() {
+        $('virtual-balance').textContent = money(S.balance);
+        $('next-stake').textContent = money(S.currentStake);
+        const pl = $('total-pl-text');
+        pl.textContent = money(S.totalPL);
+        pl.className = 'mono ' + (S.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400');
+        const total = S.wins + S.losses;
+        $('win-rate-text').textContent = total ? ((S.wins / total) * 100).toFixed(1) + '%' : '—';
+    }
+
+    /* ============================================================
+       CHART
+       ============================================================ */
+    function buildChart() {
+        chart = new Chart($('frequencyChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['0','1','2','3','4','5','6','7','8','9'],
+                datasets: [{
+                    label: 'Frequency %',
+                    data: Array(10).fill(10),
+                    backgroundColor: '#6366f1',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 180 },
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#1F2937' },
+                        ticks: { color: '#9CA3AF', font: { family: 'JetBrains Mono', size: 10 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#9CA3AF', font: { family: 'JetBrains Mono', size: 11, weight: 'bold' } }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateChart(pct) {
+        if (!chart) return;
+        chart.data.datasets[0].data = pct;
+        chart.data.datasets[0].backgroundColor = pct.map(p =>
+            p <= 7.5 ? '#ef4444' : p >= 12.5 ? '#22c55e' : '#6366f1'
+        );
+        chart.update();
+    }
+
+    /* ============================================================
+       TRADE EXECUTION  (forward-looking settlement)
+       ============================================================ */
+    function isWin(type, target, digit) {
+        switch (type) {
+            case 'EVEN':    return digit % 2 === 0;
+            case 'ODD':     return digit % 2 !== 0;
+            case 'DIFFERS': return digit !== Number(target);
+            case 'OVER 4':  return digit > 4;
+            case 'UNDER 5': return digit < 5;
+            default:        return false;
+        }
+    }
+
+    function executeTrade(type, target) {
+        if (S.pending.length) return;                    // one open position at a time
+        if (S.currentStake <= 0) return;
+        if (S.balance < S.currentStake) { stopBot('Insufficient balance to place the next stake.'); return; }
+
+        S.pending.push({
+            type,
+            target: String(target),
+            stake: S.currentStake,                       // frozen at placement time
+            placedAt: Date.now()
+        });
+
+        S.lastTradeAt = Date.now();
+        flashRiskNote(`${type} opened for ${money(S.currentStake)} — settling on next tick…`, 'info');
+    }
+
+    function settlePending(digit) {
+        if (!S.pending.length) return;
+        const open = S.pending.splice(0, S.pending.length);
+
+        for (const trade of open) {
+            const win = isWin(trade.type, trade.target, digit);
+            const rate = PAYOUT[trade.type] ?? 0.95;
+            const pl = win ? trade.stake * rate : -trade.stake;
+
+            S.balance += pl;
+            S.totalPL += pl;
+
+            if (win) {
+                S.wins++;
+                S.consecLosses = 0;
+                S.currentStake = S.baseStake;
+            } else {
+                S.losses++;
+                S.consecLosses++;
+                const mult = Math.max(1, num('martingale-input'));
+                const cap = Math.max(S.baseStake, num('maxstake-input'));
+                S.currentStake = Math.min(trade.stake * mult, cap);
+            }
+
+            const rec = {
+                t: Date.now(), type: trade.type, target: trade.target,
+                stake: trade.stake, digit, pl, win
+            };
+            S.trades.unshift(rec);
+            if (S.trades.length > 200) S.trades.pop();
+            prependTradeRow(rec);
+        }
+
+        updateBalanceUI();
+        saveState();
+        checkRiskLimits();
+    }
+
+    function prependTradeRow(rec) {
+        const tbody = $('trades-table-body');
+        const empty = $('empty-row');
+        if (empty) empty.remove();
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-brand-dark/50 transition';
+        tr.innerHTML = `
+            <td class="p-2.5 text-slate-400">${new Date(rec.t).toLocaleTimeString()}</td>
+            <td class="p-2.5 font-bold text-white">${rec.type}</td>
+            <td class="p-2.5 text-slate-300">${rec.target}</td>
+            <td class="p-2.5 text-slate-300">${money(rec.stake)}</td>
+            <td class="p-2.5 font-black ${rec.digit % 2 === 0 ? 'text-emerald-400' : 'text-indigo-400'}">${rec.digit}</td>
+            <td class="p-2.5 text-right font-bold ${rec.win ? 'text-emerald-400' : 'text-red-400'}">
+                ${rec.win ? '+' : ''}${money(rec.pl)}
+            </td>`;
+        tbody.insertBefore(tr, tbody.firstChild);
+        while (tbody.children.length > 200) tbody.removeChild(tbody.lastChild);
+    }
+
+    function restoreTradeLog() {
+        const tbody = $('trades-table-body');
+        tbody.innerHTML = '';
+        if (!S.trades.length) {
+            tbody.innerHTML = `<tr id="empty-row"><td colspan="6" class="p-4 text-center text-slate-500 font-sans">No trades executed yet. Enable Auto-Bot or execute a signal.</td></tr>`;
+            return;
+        }
+        [...S.trades].reverse().forEach(rec => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-brand-dark/50 transition';
+            tr.innerHTML = `
+                <td class="p-2.5 text-slate-400">${new Date(rec.t).toLocaleTimeString()}</td>
+                <td class="p-2.5 font-bold text-white">${rec.type}</td>
+                <td class="p-2.5 text-slate-300">${rec.target}</td>
+                <td class="p-2.5 text-slate-300">${money(rec.stake)}</td>
+                <td class="p-2.5 font-black ${rec.digit % 2 === 0 ? 'text-emerald-400' : 'text-indigo-400'}">${rec.digit}</td>
+                <td class="p-2.5 text-right font-bold ${rec.win ? 'text-emerald-400' : 'text-red-400'}">
+                    ${rec.win ? '+' : ''}${money(rec.pl)}
+                </td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    /* ============================================================
+       AUTO-BOT
+       ============================================================ */
+    function maybeAutoTrade() {
+        if (!S.botActive) return;
+        if (S.pending.length) return;                                    // wait for settlement
+        if (Date.now() - S.lastTradeAt < TRADE_COOLDOWN_MS) return;
+
+        const eligible = S.signals.filter(s => s.confidence >= S.minConfidence);
+        if (!eligible.length) return;
+
+        executeTrade(eligible[0].type, eligible[0].target);
+    }
+
+    function checkRiskLimits() {
+        if (!S.botActive) return;
+
+        const tp = num('tp-input');
+        const sl = num('sl-input');
+
+        if (tp > 0 && S.totalPL >= tp)          return stopBot(`Take profit hit at ${money(S.totalPL)}.`);
+        if (sl > 0 && S.totalPL <= -sl)         return stopBot(`Stop loss hit at ${money(S.totalPL)}.`);
+        if (S.consecLosses >= MAX_CONSEC_LOSSES) return stopBot(`${MAX_CONSEC_LOSSES} consecutive losses — session halted.`);
+        if (S.balance < S.currentStake)          return stopBot('Balance too low for the next stake.');
+    }
+
+    function startBot() {
+        // Reset session counters so TP/SL measure THIS session.
+        S.totalPL = 0;
+        S.wins = 0;
+        S.losses = 0;
+        S.consecLosses = 0;
+        S.baseStake = Math.max(1, num('stake-input'));
+        S.currentStake = S.baseStake;
+        S.lastTradeAt = 0;
+        S.botActive = true;
+
+        syncBotButton();
+        updateBalanceUI();
+        saveState();
+        flashRiskNote('Auto-bot started. Session P/L reset to $0.00.', 'ok');
+    }
+
+    function stopBot(reason) {
+        const wasActive = S.botActive;
+        S.botActive = false;
+        syncBotButton();
+        saveState();
+        if (wasActive && reason) flashRiskNote(reason, 'warn');
+    }
+
+    function syncBotButton() {
+        const btn = $('toggle-bot-btn');
+        const tag = $('bot-status-tag');
+        btn.setAttribute('aria-checked', String(S.botActive));
+
+        if (S.botActive) {
+            btn.className = 'mt-2 w-full py-2 px-4 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-red-600/20';
+            $('bot-btn-icon').innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>';
+            $('bot-btn-label').textContent = 'STOP AUTO-BOT';
+            tag.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 uppercase';
+            tag.textContent = 'ACTIVE';
+        } else {
+            btn.className = 'mt-2 w-full py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20';
+            $('bot-btn-icon').innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+            $('bot-btn-label').textContent = 'START AUTO-BOT';
+            tag.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase';
+            tag.textContent = 'OFF';
+        }
+    }
+
+    function flashRiskNote(text, tone) {
+        S.riskNote = text;
+        const el = $('risk-note');
+        el.textContent = text;
+        el.className = 'p-2.5 rounded-lg text-[11px] font-semibold border ' + (
+            tone === 'warn' ? 'bg-red-950/40 border-red-800/60 text-red-300'
+          : tone === 'ok'   ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-300'
+        );
+    }
+
+    /* ============================================================
+       EVENTS
+       ============================================================ */
+    function bindEvents() {
+        $('symbol-select').addEventListener('change', e => {
+            if (S.pending.length) {
+                e.target.value = S.symbol;
+                flashRiskNote('Cannot switch index while a trade is settling.', 'warn');
+                return;
+            }
+            S.symbol = e.target.value;
+            resetMarketState();
+            if (FEED_MODE === 'live') subscribe(S.symbol); else restartFeed();
+        });
+
+        $('lookback-slider').addEventListener('input', e => {
+            S.lookback = parseInt(e.target.value, 10);
+            $('lookback-val').textContent = S.lookback + ' Ticks';
+            renderAll();
+        });
+
+        $('toggle-bot-btn').addEventListener('click', () => {
+            if (S.botActive) stopBot(null); else startBot();
+        });
+
+        $('min-conf-input').addEventListener('change', e => {
+            let v = parseInt(e.target.value, 10);
+            if (!Number.isFinite(v)) v = 70;
+            v = Math.min(95, Math.max(50, v));
+            e.target.value = v;
+            S.minConfidence = v;
+            saveState();
+        });
+
+        $('stake-input').addEventListener('input', () => {
+            S.baseStake = Math.max(1, num('stake-input'));
+            if (!S.botActive && !S.pending.length) { S.currentStake = S.baseStake; updateBalanceUI(); }
+        });
+
+        // Delegated handler — no inline JS interpolation.
+        $('signals-container').addEventListener('click', e => {
+            const btn = e.target.closest('.js-execute');
+            if (!btn) return;
+            executeTrade(btn.dataset.type, btn.dataset.target);
+        });
+
+        window.addEventListener('beforeunload', saveState);
+    }
+
+    function resetMarketState() {
+        S.ticks = [];
+        S.overdue = Array(10).fill(0);
+        S.signals = [];
+        S.pending = [];
+        S.lastSignalSig = '';
+        S.lastTapeSig = '';
+        S.simPrice = SYMBOLS[S.symbol].seed;
+        $('digit-tape').innerHTML = '';
+        renderSignals();
+    }
+
+    function syncControls() {
+        $('symbol-select').value = S.symbol;
+        $('lookback-slider').value = S.lookback;
+        $('lookback-val').textContent = S.lookback + ' Ticks';
+        $('min-conf-input').value = S.minConfidence;
+        syncBotButton();
+        if (S.riskNote) flashRiskNote(S.riskNote, 'info');
+    }
+
+    /* ============================================================
+       PERSISTENCE
+       ============================================================ */
+    function saveState() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                balance: S.balance,
+                wins: S.wins,
+                losses: S.losses,
+                trades: S.trades.slice(0, 200),
+                minConfidence: S.minConfidence
+            }));
+        } catch (_) { /* quota / private mode — ignore */ }
+    }
+
+    function loadState() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return;
+            const d = JSON.parse(raw);
+            if (typeof d.balance === 'number') S.balance = d.balance;
+            if (typeof d.wins === 'number') S.wins = d.wins;
+            if (typeof d.losses === 'number') S.losses = d.losses;
+            if (Array.isArray(d.trades)) S.trades = d.trades;
+            if (typeof d.minConfidence === 'number') S.minConfidence = d.minConfidence;
+        } catch (_) { /* corrupt payload — start fresh */ }
+    }
+    </script>
+</body>
+</html>
